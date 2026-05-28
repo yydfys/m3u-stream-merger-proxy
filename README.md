@@ -4,18 +4,18 @@
 [![All Contributors](https://img.shields.io/badge/all_contributors-5-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
-> [!WARNING]  
-> This repo is currently in heavy development. Expect major changes on every release until the first stable release, `1.0.0`.
-> Using the `:dev` tag will allow you to be up-to-date with the main branch.
+> [!NOTE]
+> This project is now in **maintenance mode**. It is feature-complete and no major new features are planned.
+> Bug fixes, dependency updates, and compatibility patches will still be accepted.
+> Feature requests are welcome but will be evaluated on a case-by-case basis.
 
 Streamline your IPTV experience by consolidating multiple M3U playlists into a single source with the blazingly fast 🔥 and lightweight M3U Stream Merger Proxy. This service acts as a modern HTTP proxy server, effortlessly merging and streaming content from various M3U sources.
 
-Uses the channel title or `tvg-name` (as fallback) to merge multiple identical channels into one. This is not an xTeVe/Threadfin replacement but is often used with it.
-
-> [!IMPORTANT]  
-> Redis has been **removed** as a dependency starting `0.16.0`. The proxy should now be (mostly) **stateless**.
+> [!IMPORTANT]
+> Redis has been **removed** as a dependency starting `0.16.0`. The proxy is now **stateless**.
 > Migrating to `0.16.0` is as easy as removing the Redis container from your compose file.
-> Due to a major change on how data is being processed, any Redis persistence cannot be migrated over and a sync from the original M3U sources will be required.
+
+Uses the channel title or `tvg-name` (as fallback) to merge multiple identical channels into one. This is not an xTeVe/Threadfin replacement but is often used with it.
 
 ## How It Works
 
