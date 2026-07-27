@@ -1,79 +1,61 @@
 name: Build ARM64 Binary
 
 on:
+  workflow_dispatch:
+    inputs:
+      upstream_tag:
+        description: 'Upstream tag to build (leave empty for latest)'
+        required: false
+        default: ''
   schedule:
     - cron: '0 */6 * * *'
-  workflow_dispatch:
-  push:
-    branches: [main]
-
-env:
-  UPSTREAM_OWNER: sonroyaalmerol
-  UPSTREAM_REPO: m3u-stream-merger-proxy
 
 jobs:
-  check-and-build:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@v4
 
-      - name: Get latest upstream release
+      - name: Get latest upstream tag
         id: upstream
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          RELEASE=$(curl -s "https://api.github.com/repos/${{ env.UPSTREAM_OWNER }}/${{ env.UPSTREAM_REPO }}/releases/latest")
-          TAG=$(echo "$RELEASE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('tag_name',''))" 2>/dev/null || echo "")
-          if [ -z "$TAG" ]; then
-            echo "No upstream release found"
-            echo "new_tag=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
+          UPSTREAM=sonroyaalmerol/m3u-stream-merger-proxy
+          API=https://api.github.com/repos/${UPSTREAM}/tags?per_page=1
+          TAG=$(curl -s "$API" | python3 -c "import sys,json; t=json.load(sys.stdin); print(t[0]['name'] if t else '')")
           echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "new_tag=true" >> $GITHUB_OUTPUT
+          echo "Found tag: $TAG"
 
       - name: Check if already built
         id: check
-        if: steps.upstream.outputs.new_tag == 'true'
         run: |
-          TAG="${{ steps.upstream.outputs.tag }}"
-          EXISTS=$(curl -s -o /dev/null -w "%{http_code}"             "https://github.com/${{ github.repository }}/releases/tag/$TAG")
-          if [ "$EXISTS" = "200" ]; then
-            echo "Tag $TAG already exists in fork, skipping"
-            echo "skip=true" >> $GITHUB_OUTPUT
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
-          fi
+          TAG=${{ steps.upstream.outputs.tag }}
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' https://github.com/${{ github.repository }}/releases/tag/$TAG)
+          echo "Status: $STATUS"
+          if [ "$STATUS" = "200" ]; then echo 'skip=true' >> $GITHUB_OUTPUT; else echo 'skip=false' >> $GITHUB_OUTPUT; fi
 
-      - name: Setup Go
-        if: steps.upstream.outputs.new_tag == 'true' && steps.check.outputs.skip == 'false'
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
+        if: steps.check.outputs.skip == 'false'
         with:
           go-version: '1.26'
 
-      - name: Checkout upstream source at tag
-        if: steps.upstream.outputs.new_tag == 'true' && steps.check.outputs.skip == 'false'
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.skip == 'false'
         with:
-          repository: ${{ env.UPSTREAM_OWNER }}/${{ env.UPSTREAM_REPO }}
+          repository: sonroyaalmerol/m3u-stream-merger-proxy
           ref: ${{ steps.upstream.outputs.tag }}
           path: source
 
-      - name: Build ARM64 binary
-        if: steps.upstream.outputs.new_tag == 'true' && steps.check.outputs.skip == 'false'
+      - name: Build ARM64
+        if: steps.check.outputs.skip == 'false'
         working-directory: ./source
         run: |
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o m3u-proxy-arm64 .
-          echo "Build complete"
+          GO111MODULE=on CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags='-s -w' -o m3u-proxy-arm64 .
           ls -lh m3u-proxy-arm64
 
-      - name: Create Release
-        if: steps.upstream.outputs.new_tag == 'true' && steps.check.outputs.skip == 'false'
+      - name: Publish Release
+        if: steps.check.outputs.skip == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="${{ steps.upstream.outputs.tag }}"
-          gh release create "$TAG" --repo ${{ github.repository }}             --title "$TAG (ARM64)"             --notes "Auto-built from upstream ${{ env.UPSTREAM_OWNER }}/${{ env.UPSTREAM_REPO }} $TAG"             ./source/m3u-proxy-arm64 ||           gh release upload "$TAG" ./source/m3u-proxy-arm64 --repo ${{ github.repository }} --clobber
+          TAG=${{ steps.upstream.outputs.tag }}
+          gh release create "$TAG" ./source/m3u-proxy-arm64 --repo ${{ github.repository }} --title "$TAG" --notes "Auto-built" --generate-notes 2>/dev/null ||           gh release upload "$TAG" ./source/m3u-proxy-arm64 --repo ${{ github.repository }} --clobber
