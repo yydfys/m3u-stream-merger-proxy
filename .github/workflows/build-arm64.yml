@@ -1,4 +1,4 @@
-name: Build & Package ARM64
+name: Build ARM64 Binary
 
 on:
   workflow_dispatch:
@@ -38,23 +38,12 @@ jobs:
           ref: ${{ steps.upstream.outputs.tag }}
           path: source
 
-      - name: Build binary
+      - name: Build
         if: steps.check.outputs.skip == 'false'
         working-directory: ./source
         run: GO111MODULE=on CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags='-s -w' -o m3u-proxy-arm64 .
 
-      - name: Package zip
-        if: steps.check.outputs.skip == 'false'
-        run: |
-          TAG=${{ steps.upstream.outputs.tag }}
-          mkdir -p package/bin
-          cp source/m3u-proxy-arm64 package/bin/
-          cp m3u-proxy_monitor_node.js package/
-          echo "$TAG" > package/version.txt
-          cd package && zip -r ../m3u-proxy.zip . && cd ..
-          ls -lh m3u-proxy.zip
-
-      - name: Publish Release
+      - name: Publish
         if: steps.check.outputs.skip == 'false'
         uses: softprops/action-gh-release@v2
         with:
@@ -62,10 +51,5 @@ jobs:
           name: ${{ steps.upstream.outputs.tag }}
           body: |
             Auto-built from sonroyaalmerol/m3u-stream-merger-proxy
-            
-            📦 m3u-proxy.zip 包含:
-            - bin/m3u-proxy-arm64 (ARM64 静态二进制)
-            - m3u-proxy_monitor_node.js (手机自动更新脚本)
-            - version.txt (版本号)
-          files: m3u-proxy.zip
+          files: source/m3u-proxy-arm64
           make_latest: true
