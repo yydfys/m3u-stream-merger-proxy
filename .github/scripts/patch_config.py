@@ -1,9 +1,5 @@
 import sys, os
 
-# Get working directory from either GITHUB_WORKSPACE or CWD
-repo_root = os.environ.get('GITHUB_WORKSPACE', '.')
-os.chdir(repo_root)
-
 # ============================================================
 # 1. PATCH config.go - add init() with env var overrides
 # ============================================================
@@ -53,12 +49,15 @@ new = (
 if old not in content:
     print("ERROR: config.go does not contain expected string!")
     print("Looking for:", repr(old[:80]))
+    # Debug: find the actual line
+    for i, line in enumerate(content.split('\n')):
+        if 'globalConfig' in line:
+            print(f"  line {i+1}: {repr(line.strip())}")
     sys.exit(1)
 
 content = content.replace(old, new)
 
-# Add imports: context, crypto/tls, net, net/http
-# Upstream format: "os\n\t"  (tab before "os")
+# Add imports: must match upstream format (tab before "os")
 content = content.replace('\t"os"\n', '\t"os"\n\t"context"\n\t"crypto/tls"\n\t"net"\n\t"net/http"\n')
 
 open('config/config.go', 'w').write(content)
