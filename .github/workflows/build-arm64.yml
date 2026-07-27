@@ -13,18 +13,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Get latest upstream tag
+      - name: Get upstream tag
         id: upstream
         run: |
-          TAG=$(curl -s 'https://api.github.com/repos/sonroyaalmerol/m3u-stream-merger-proxy/tags?per_page=1' | python3 -c "import sys,json; t=json.load(sys.stdin); print(t[0]['name'] if t else '')")
+          TAG=$(curl -s 'https://api.github.com/repos/sonroyaalmerol/m3u-stream-merger-proxy/tags?per_page=1' | python3 -c "import sys,json;print(json.load(sys.stdin)[0]['name'])")
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
-      - name: Check if already built
+      - name: Check skip
         id: check
         run: |
           TAG=${{ steps.upstream.outputs.tag }}
-          CODE=$(curl -s -o /dev/null -w '%{http_code}' https://github.com/${{ github.repository }}/releases/tag/$TAG)
-          if [ "$CODE" = "200" ]; then echo 'skip=true' >> $GITHUB_OUTPUT; else echo 'skip=false' >> $GITHUB_OUTPUT; fi
+          code=$(curl -s -o /dev/null -w '%{http_code}' https://github.com/${{ github.repository }}/releases/tag/$TAG)
+          test "$code" = "200" && echo 'skip=true' >> $GITHUB_OUTPUT || echo 'skip=false' >> $GITHUB_OUTPUT
 
       - uses: actions/setup-go@v5
         if: steps.check.outputs.skip == 'false'
@@ -38,21 +38,17 @@ jobs:
           ref: ${{ steps.upstream.outputs.tag }}
           path: source
 
-      - name: Build ARM64
+      - name: Build
         if: steps.check.outputs.skip == 'false'
         working-directory: ./source
-        run: |
-          GO111MODULE=on CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags='-s -w' -o m3u-proxy-arm64 .
-          ls -lh m3u-proxy-arm64
+        run: GO111MODULE=on CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags='-s -w' -o m3u-proxy-arm64 .
 
-      - name: Create git tag and release
+      - name: Upload Release Asset
         if: steps.check.outputs.skip == 'false'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          TAG=${{ steps.upstream.outputs.tag }}
-          git config user.name 'github-actions'
-          git config user.email 'github-actions@github.com'
-          git tag -a "$TAG" -m "$TAG"
-          git push origin "$TAG" || true
-          gh release create "$TAG" ./source/m3u-proxy-arm64 --repo ${{ github.repository }} --title "$TAG" --notes "Auto-built" ||           gh release upload "$TAG" ./source/m3u-proxy-arm64 --repo ${{ github.repository }} --clobber
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.upstream.outputs.tag }}
+          name: ${{ steps.upstream.outputs.tag }}
+          body: Auto-built from sonroyaalmerol/m3u-stream-merger-proxy
+          files: source/m3u-proxy-arm64
+          make_latest: true
