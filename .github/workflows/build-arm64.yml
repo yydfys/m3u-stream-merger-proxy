@@ -38,6 +38,24 @@ jobs:
           ref: ${{ steps.upstream.outputs.tag }}
           path: source
 
+      - name: Patch env var support
+        if: steps.check.outputs.skip == 'false'
+        working-directory: ./source
+        run: |
+          python3 -c "
+content = open('config/config.go').read()
+content = content.replace(
+    'var globalConfig = &Config{\n\tDataPath: \"/m3u-proxy/data/\",\n\tTempPath: \"/tmp/m3u-proxy/\",\n}',
+    'var globalConfig = &Config{\n\tDataPath: \"/m3u-proxy/data/\",\n\tTempPath: \"/tmp/m3u-proxy/\",\n}\nfunc init() {\n\tif d := os.Getenv(\"DATA_DIR\"); d != \"\" {\n\t\tglobalConfig.DataPath = d\n\t}\n\tif t := os.Getenv(\"TEMP_DIR\"); t != \"\" {\n\t\tglobalConfig.TempPath = t\n\t}\n}'
+)
+content = content.replace(
+    '\"fmt\"',
+    '\"fmt\"\n\t\"os\"'
+)
+open('config/config.go', 'w').write(content)
+"
+          python3 -c "import py_compile; compile(open('config/config.go').read(), 'config/config.go', 'exec')" && echo "patch OK"
+
       - name: Build
         if: steps.check.outputs.skip == 'false'
         working-directory: ./source
