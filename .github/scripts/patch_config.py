@@ -69,9 +69,9 @@ new_fn += '\n\t\t\t\t}'
 new_fn += '\n\t\t\t}'
 new_fn += '\n\t\t\treturn true'
 new_fn += '\n\t\t})'
-new_fn += '\n\t\tif originalUrl != "" {'
+new_fn += '\n\t\t}'\nnew_fn += '\n\t\tif originalUrl != "" {'
 new_fn += '\n\t\t\treturn originalUrl'
-new_fn += '\n\t\t}'
+new_fn += '\n\t\t\t}'
 new_fn += '\n\t}'
 
 helpers = helpers.replace(old_fn, new_fn)
