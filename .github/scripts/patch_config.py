@@ -1,7 +1,7 @@
-import sys, re
+import sys
 content = open('config/config.go').read()
 
-# 1. Add init() with DATA_DIR + DNS_SERVER support
+# 1. Data paths + DNS_SERVER + SSL_SKIP_VERIFY (InsecureSkipVerify)
 content = content.replace(
     'var globalConfig = &Config{\n\tDataPath: "/m3u-proxy/data/",\n\tTempPath: "/tmp/m3u-proxy/",\n}',
     'var globalConfig = &Config{\n\tDataPath: "/m3u-proxy/data/",\n\tTempPath: "/tmp/m3u-proxy/",\n}\n'
@@ -21,13 +21,16 @@ content = content.replace(
     '\t\t\t},\n'
     '\t\t}\n'
     '\t}\n'
+    '\tif os.Getenv("SSL_VERIFY") == "false" {\n'
+    '\t\thttp.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}\n'
+    '\t}\n'
     '}'
 )
 
-# 2. Add "context" and "net" to imports
+# 2. Add imports
 content = content.replace(
     '\t"os"\n',
-    '\t"os"\n\t"context"\n\t"net"\n'
+    '\t"os"\n\t"context"\n\t"crypto/tls"\n\t"net"\n\t"net/http"\n'
 )
 
 open('config/config.go', 'w').write(content)
