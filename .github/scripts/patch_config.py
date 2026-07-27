@@ -1,7 +1,7 @@
 import sys
 content = open('config/config.go').read()
 
-# 1. Data paths + DNS_SERVER + SSL_SKIP_VERIFY (InsecureSkipVerify)
+# 1. Data paths + DNS_SERVER + SSL_SKIP_VERIFY (InsecureSkipVerify) + UA
 content = content.replace(
     'var globalConfig = &Config{\n\tDataPath: "/m3u-proxy/data/",\n\tTempPath: "/tmp/m3u-proxy/",\n}',
     'var globalConfig = &Config{\n\tDataPath: "/m3u-proxy/data/",\n\tTempPath: "/tmp/m3u-proxy/",\n}\n'
@@ -24,6 +24,21 @@ content = content.replace(
     '\tif os.Getenv("SSL_VERIFY") == "false" {\n'
     '\t\thttp.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}\n'
     '\t}\n'
+    '\tua := os.Getenv("HTTP_USER_AGENT")\n'
+    '\tif ua == "" {\n'
+    '\t\tua = "okhttp/4.12.0"\n'
+    '\t}\n'
+    '\thttp.DefaultTransport = &uaTransport{inner: http.DefaultTransport, ua: ua}\n'
+    '}\n\n'
+    'type uaTransport struct {\n'
+    '\tinner http.RoundTripper\n'
+    '\tua    string\n'
+    '}\n\n'
+    'func (t *uaTransport) RoundTrip(req *http.Request) (*http.Response, error) {\n'
+    '\tif req.Header.Get("User-Agent") == "" {\n'
+    '\t\treq.Header.Set("User-Agent", t.ua)\n'
+    '\t}\n'
+    '\treturn t.inner.RoundTrip(req)\n'
     '}'
 )
 
