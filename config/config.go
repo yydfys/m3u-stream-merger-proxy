@@ -13,10 +13,22 @@ type Config struct {
 	TempPath string
 }
 
-var globalConfig = &Config{
-	DataPath: "/m3u-proxy/data/",
-	TempPath: "/tmp/m3u-proxy/",
+func init() {
+	dataDir := os.Getenv("DATA_DIR")
+	if dataDir == "" {
+		dataDir = "/m3u-proxy/data/"
+	}
+	tmpDir := os.Getenv("TEMP_DIR")
+	if tmpDir == "" {
+		tmpDir = "/tmp/m3u-proxy/"
+	}
+	globalConfig = &Config{
+		DataPath: dataDir,
+		TempPath: tmpDir,
+	}
 }
+
+var globalConfig *Config
 
 func GetConfig() *Config {
 	return globalConfig
