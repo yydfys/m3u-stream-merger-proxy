@@ -49,4 +49,35 @@ content = content.replace(
 )
 
 open('config/config.go', 'w').write(content)
+# 3. Patch helpers.go - add OUTPUT_DIRECT_URLS support
+helpers_path = 'sourceproc/helpers.go'
+helpers = open(helpers_path).read()
+
+old_fn = 'func GenerateStreamURL(baseUrl string, stream *StreamInfo) string {'
+new_fn = 'func GenerateStreamURL(baseUrl string, stream *StreamInfo) string {'
+
+new_fn += '\n\tif os.Getenv("OUTPUT_DIRECT_URLS") == "true" {'
+new_fn += '\n\t\tvar originalUrl string'
+new_fn += '\n\t\tstream.URLs.Range(func(_ string, innerMap map[string]string) bool {'
+new_fn += '\n\t\t\tfor _, srcUrl := range innerMap {'
+new_fn += '\n\t\t\t\tparts := strings.SplitN(srcUrl, ":::", 2)'
+new_fn += '\n\t\t\t\tif len(parts) == 2 {'
+new_fn += '\n\t\t\t\t\toriginalUrl = parts[1]'
+new_fn += '\n\t\t\t\t\treturn false'
+new_fn += '\n\t\t\t\t}'
+new_fn += '\n\t\t\t}'
+new_fn += '\n\t\t\treturn true'
+new_fn += '\n\t\t})'
+new_fn += '\n\t\tif originalUrl != "" {'
+new_fn += '\n\t\t\treturn originalUrl'
+new_fn += '\n\t\t}'
+new_fn += '\n\t}'
+
+helpers = helpers.replace(old_fn, new_fn)
+
+if '"os"' not in helpers:
+    helpers = helpers.replace('import (', 'import (\n\t"os"')
+
+open(helpers_path, 'w').write(helpers)
+
 print("patch OK")
